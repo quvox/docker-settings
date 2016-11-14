@@ -1,0 +1,36 @@
+version: '2'
+
+services:
+  # reverse-proxy
+  nginx-proxy:
+    image: sig9/nginx-proxy
+    privileged: true
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ./data/nginx-proxy/certs:/etc/nginx/certs:ro
+      - ./data/nginx-proxy/htpasswd:/etc/nginx/htpasswd
+      - /etc/nginx/vhost.d
+      - /usr/share/nginx/html
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+
+  letsencrypt:
+    image: jrcs/letsencrypt-nginx-proxy-companion
+    privileged: true
+    volumes:
+      - ./data/nginx-proxy/certs:/etc/nginx/certs:rw
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    volumes_from:
+      - nginx-proxy
+
+  nginx:
+    image: nginx
+    ports:
+      - 8080:80
+    environment:
+      - NGINX_ROOT=/usr/share/nginx
+      - VIRTUAL_HOST=${CERT_HOST}
+      - VIRTUAL_PORT=80
+      - LETSENCRYPT_HOST=${CERT_HOST}
+      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}

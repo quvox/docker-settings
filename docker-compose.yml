@@ -1,79 +1,97 @@
-# reverse-proxy
-nginx-proxy:
-  image: sig9/nginx-proxy
-  privileged: true
-  ports:
-    - 80:80
-    - 443:443
-  volumes:
-    - ./data/nginx-proxy/certs:/etc/nginx/certs:ro
-    - ./data/nginx-proxy/htpasswd:/etc/nginx/htpasswd
-    - /etc/nginx/vhost.d
-    - /usr/share/nginx/html
-    - /var/run/docker.sock:/tmp/docker.sock:ro
+version: '2'
 
-letsencrypt:
-  image: jrcs/letsencrypt-nginx-proxy-companion
-  privileged: true
-  volumes:
-    - ./data/nginx-proxy/certs:/etc/nginx/certs:rw
-    - /var/run/docker.sock:/var/run/docker.sock:ro
-  volumes_from:
-    - nginx-proxy
+services:
+  # reverse-proxy
+  nginx-proxy:
+    image: sig9/nginx-proxy
+    privileged: true
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ./data/nginx-proxy/certs:/etc/nginx/certs:ro
+      - ./data/nginx-proxy/htpasswd:/etc/nginx/htpasswd
+      - /etc/nginx/vhost.d
+      - /usr/share/nginx/html
+      - /var/run/docker.sock:/tmp/docker.sock:ro
 
-# gitbucket (localhost:8080)
-data-gitbucket:
-  image: busybox
-  volumes:
-    - ${PWD}/data/gitbucket:/gitbucket
+  letsencrypt:
+    image: jrcs/letsencrypt-nginx-proxy-companion
+    privileged: true
+    volumes:
+      - ./data/nginx-proxy/certs:/etc/nginx/certs:rw
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    volumes_from:
+      - nginx-proxy
 
-gitbucket:
-  image: f99aq8ove/gitbucket
-  volumes_from:
-    - data-gitbucket
-  ports:
-    - "8080:8080"
-    - "29418:29418"
+  # gitbucket (localhost:8080)
+  data-gitbucket:
+    image: busybox
+    volumes:
+      - ${PWD}/data/gitbucket:/gitbucket
+      
+  gitbucket:
+    image: f99aq8ove/gitbucket
+    volumes_from:
+      - data-gitbucket
+    ports:
+      - "8080:80"
+      - "29418:29418"
+    environment:
+      - NGINX_ROOT=/usr/share/nginx
+      - VIRTUAL_HOST=${HOSTNAME_GIT}
+      - VIRTUAL_PORT=8080
+      - LETSENCRYPT_HOST=${CERT_HOST}
+      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
 
-# db
-data-mysql:
-  image: busybox
-  volumes:
-    - ${PWD}/data/mysql:/var/lib/mysql
+  # db
+  data-mysql:
+    image: busybox
+    volumes:
+      - ${PWD}/data/mysql:/var/lib/mysql
 
-mysql:
-  image: mysql
-  volumes_from:
-    - data-mysql
-  restart: always
-  environment:
-    MYSQL_ROOT_PASSWORD: wordpress
-    MYSQL_DATABASE: wordpress
-    MYSQL_USER: wordpress
-    MYSQL_PASSWORD: wordpress
+  mysql:
+    image: mysql
+    volumes_from:
+      - data-mysql
+    restart: always
+    environment:
+      - MYSQL_ROOT_PASSWORD=wordpress
+      - MYSQL_DATABASE=wordpress
+      - MYSQL_USER=wordpress
+      - MYSQL_PASSWORD=wordpress
 
-# wordpress (localhost:8000)
-wordpress:
-  image: wordpress:latest
-  links:
-    - mysql:mysql
-  ports:
-    - "8000:80"
-  restart: always
-  environment:
-    WORDPRESS_DB_HOST: mysql:3306
-    WORDPRESS_DB_PASSWORD: wordpress
+  # wordpress (localhost:8000)
+  wordpress:
+    image: wordpress:latest
+    links:
+      - mysql:mysql
+    ports:
+      - "8000:80"
+    restart: always
+    environment:
+      - WORDPRESS_DB_HOST=mysql:3306
+      - WORDPRESS_DB_PASSWORD=wordpress
+      - VIRTUAL_HOST=${HOSTNAME_WORDPRESS}
+      - VIRTUAL_PORT=80
+      - LETSENCRYPT_HOST=${CERT_HOST}
+      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
 
-# knowledge (localhost:8081)
-data-knowledge:
-  image: busybox
-  volumes:
-    - ${PWD}/data/knowledge:/root/.knowledge
+  # knowledge (localhost:8081)
+  data-knowledge:
+    image: busybox
+    volumes:
+      - ${PWD}/data/knowledge:/root/.knowledge
 
-knowledge:
-  #build: ./build/knowledge/
-  image: knowledge:1.6.0
-  ports:
-    - "8081:8080"
-  volumes_from:
-    - data-knowledge
+  knowledge:
+    #build: ./build/knowledge/
+    image: knowledge:1.6.0
+    ports:
+      - "8081:8080"
+    volumes_from:
+      - data-knowledge
+    environment:
+      - VIRTUAL_HOST=${HOSTNAME_KNOWLEDGE}
+      - VIRTUAL_PORT=8080
+      - LETSENCRYPT_HOST=${CERT_HOST}
+      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
