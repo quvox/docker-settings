@@ -93,3 +93,8 @@ auth\_basic\_user\_file /etc/nginx/htpasswd/SOMEFILE
 ### 参考
 https://github.com/jwilder/nginx-proxy
 
+
+# その他注意点
+- Ubuntuを使っていると、NetworkManagerがdns-masqを勝手に起動しているため、dnsサーバ(bind9)を立ち上げようとするとport 53/udpがAddress already in useになって起動できない。
+ - dns-masqが立ち上がらないようにすれば良い。（/etc/NetworkManager/NetworkManager.confの`dns=dnsmasq`の行をコメントアウト）
+  - http://www.lighthouse-w5.com/index.php/25-linux/62-ubuntu-dnsmasq.html

@@ -27,7 +27,7 @@ services:
   dns:
     image: cosmicq/docker-bind
     ports:
-      #- 53:53/udp
+      - 53:53/udp
       - 53:53
       - 9000:10000
     volumes:
