@@ -9,21 +9,35 @@ services:
       - 80:80
       - 443:443
     volumes:
-      - ./data/nginx-proxy/certs:/etc/nginx/certs:ro
-      - ./data/nginx-proxy/htpasswd:/etc/nginx/htpasswd
-      - /etc/nginx/vhost.d
-      - /usr/share/nginx/html
+      - ${PWD}/data/nginx-proxy/certs:/etc/nginx/certs:ro
+      - ${PWD}/data/nginx-proxy/htpasswd:/etc/nginx/htpasswd
+      - ${PWD}/data/nginx-proxy/vhost.d:/etc/nginx/vhost.d
+      - ${PWD}/data/nginx-proxy/html:/usr/share/nginx/html
       - /var/run/docker.sock:/tmp/docker.sock:ro
 
   letsencrypt:
     image: jrcs/letsencrypt-nginx-proxy-companion
     privileged: true
     volumes:
-      - ./data/nginx-proxy/certs:/etc/nginx/certs:rw
+      - ${PWD}/data/nginx-proxy/certs:/etc/nginx/certs:rw
       - /var/run/docker.sock:/var/run/docker.sock:ro
     volumes_from:
       - nginx-proxy
 
+  dns:
+    image: cosmicq/docker-bind
+    ports:
+      #- 53:53/udp
+      - 53:53
+      - 9000:10000
+    volumes:
+      - ${PWD}/data/bind/etc:/etc/bind
+      - ${PWD}/data/bind/zones:/var/lib/bind
+      - ${PWD}/data/bind/webmin:/etc/webmin
+    restart: unless-stopped
+    environment:
+      - PASS=password     # initial password for root
+    
   # gitbucket (localhost:8080)
   data-gitbucket:
     image: busybox
@@ -35,8 +49,8 @@ services:
     volumes_from:
       - data-gitbucket
     ports:
-      - "8080:80"
-      - "29418:29418"
+      - 8080:8080
+      - 29418:29418
     environment:
       - NGINX_ROOT=/usr/share/nginx
       - VIRTUAL_HOST=${HOSTNAME_GIT}
@@ -67,7 +81,7 @@ services:
     links:
       - mysql:mysql
     ports:
-      - "8000:80"
+      - 8000:80
     restart: always
     environment:
       - WORDPRESS_DB_HOST=mysql:3306
@@ -87,7 +101,7 @@ services:
     #build: ./build/knowledge/
     image: knowledge:1.6.0
     ports:
-      - "8081:8080"
+      - 8081:8080
     volumes_from:
       - data-knowledge
     environment:

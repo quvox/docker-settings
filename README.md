@@ -34,6 +34,8 @@ sh ./init_certs.sh down
 ```
 とする。
 
+*うまくいかない時がある。原因不明*
+
 ### knowledgeのbuild
 ```
 cd build/knowledge
@@ -54,9 +56,9 @@ gitbucketだけ立ち上げたい時
 docker-compose up -d gitbucket
 ```
 
-wordpressだけ立ち上げたい時
+nginx-proxyとwordpressだけ立ち上げたい時
 ```
-docker-compose up -d wordpress
+docker-compose up -d nginx-proxy wordpress
 ```
 
 # ディレクトリ構成
@@ -67,4 +69,27 @@ docker-compose up -d wordpress
  - 各サービスがデータ格納用に使う。(自動生成されるので最初は存在しない)
  - 基本的にはサービスごとにData Volume Containerを作って、マウントしている。
  - data/全体をバックアップすればいい。
+
+# nginx-proxyの設定方法について
+nginx-proxyでは、/etc/nginx/conf.d/default.conf (およびmy-proxy.conf)で基本的な設定がなされている（このファイルやディレクトリはマウントされていない）。個別のvirtual hostに対して設定したい場合は、data/nginx-proxy/vhost.d/の下に設定ファイルを置けばよい。そうすることによって、/etc/nginx/conf.d/default.confの中の一部が変更される（またはincludeされる）。例えばhostA.example.comというvirtual hostの場合を書く。
+
+### vhost.d/hostA.example.com_location というファイルを置いた場合
+このファイルの中身は、/etc/nginx/conf.d/default.conf内のhostA.example.comに関する情報の、locationディレクティブ内にincludeで展開される。つまり、locationディレクティブの中に書く内容だけを直接記述すれば良い。例えば、
+
+```
+satisfy any;
+allow 192.168.0.0/16;
+deny all;
+auth\_basic "basic authentication";
+auth\_basic\_user\_file /etc/nginx/htpasswd/SOMEFILE
+```
+と書くと、hostA.example.comに対して192.168.0.0/16からアクセスされたときは素通り、それ以外のIPからアクセスされたときは、Basic認証がかかる。なおその際の認証情報は、/etc/nginx/htpasswd/SOMEFILEに格納されるが、これはdata/nginx-proxy/htpasswd/ にマウントされているので、そこでhtpasswdを使ってパスワードファイルを作れば良い（containerに入る必要なし）。
+
+### data/nginx-proxy/htpasswd/hostA.example.com というファイルを置いた場合
+このファイルはhtpasswdで作成されたパスワードファイルでなければならない。data/nginx-proxy/htpasswd/の下にvirtual host名と同名のファイルを置いた場合、そのホスト名でのアクセスにはすべてBasic認証が適用される。
+
+したがって、前項で`auth\_basic\_user\_file /etc/nginx/htpasswd/SOMEFILE`という記述をしていたが、このSOMEFILEをhostA.example.comというホスト名と同名ｎファイルにしてしまうと、全部にBasic認証がかかってしまい、意図しない動作となる。
+
+### 参考
+https://github.com/jwilder/nginx-proxy
 
