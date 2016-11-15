@@ -98,3 +98,5 @@ https://github.com/jwilder/nginx-proxy
 - Ubuntuを使っていると、NetworkManagerがdns-masqを勝手に起動しているため、dnsサーバ(bind9)を立ち上げようとするとport 53/udpがAddress already in useになって起動できない。
  - dns-masqが立ち上がらないようにすれば良い。（/etc/NetworkManager/NetworkManager.confの`dns=dnsmasq`の行をコメントアウト）
   - http://www.lighthouse-w5.com/index.php/25-linux/62-ubuntu-dnsmasq.html
+- gitbucketでsshを使うときは、*必ず*urlの指定を*ssh://user@host/group/repo.git*の形で指定しなければならない。.ssh/configでショートカット名を設定していても、ssh://user@host/の形を必ず守ること！
+ - そうしないと、git-receive-packやgit-upload-packのエラーが出てしまう。
